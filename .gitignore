@@ -1,4 +1,6 @@
 .env
 venv
+.venv
 *.parquet
 results
+my_model

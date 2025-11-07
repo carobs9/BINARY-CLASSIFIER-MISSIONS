@@ -50,7 +50,7 @@ class MissionLabel(BaseModel):
     label: int | None
     reason: str
 
-output_path = "classified_missions_gpt4omini.csv"
+output_path = "data/classified_missions_gpt4omini.csv"
 checkpoint_every = 100  # save every 100 items
 max_retries = 5
 
@@ -126,4 +126,4 @@ for i in range(start_index, total):
 # final save (in case last chunk < checkpoint_every)
 df = pd.DataFrame(results)
 df.to_csv(output_path, index=False)
-print("✅ Finished. Final results saved.")
+print("Finished. Final results saved.")
