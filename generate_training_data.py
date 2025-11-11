@@ -13,16 +13,17 @@ raw = pd.read_parquet('data/501c3_charity_geocoded_missions_clean.parquet', engi
 missions = raw.CANONICAL_MISSION.dropna().tolist()
 missions_subset = missions[0:3_000]
 
-client = OpenAI()
+api_key = os.getenv('OPENAI_API_KEY')
+client = OpenAI(api_key=api_key)
 
 classifier_prompt = '''You are classifying nonprofit mission statements as RELIGIOUS (1) or NON-RELIGIOUS (0).
 
-Use these definitions, which reflect the preferences of my organization:
+Use these definitions, which reflect experiences of scholars of economics of religion:
 
 - Label 1 (RELIGIOUS) if:
-  - The mission mentions religion, faith, God, Christ, Jesus, Bible, gospel, church, ministry, spiritual growth, or similar concepts; OR
-  - The mission is very general but strongly emphasizes community betterment, compassion, serving the poor, or moral uplift,
-    in a way typical of faith-based charities. Examples: "community betterment", "help the poor", "serve our neighbors",
+  - The mission mentions religion, faith, God, Christ, Jesus, Bible, gospel, church, ministry, spiritual worship, or similar concepts; OR
+  - The mission emphasizes positive community, compassion, hope, moral uplift, or similar concepts
+    in a way typical of faith-based charities. Examples: "positive community", "give hope to the poor", "serve our neighbors",
     "acts of compassion", "uplift our community", etc.
 
 - Label 0 (NON-RELIGIOUS) if:
@@ -31,9 +32,10 @@ Use these definitions, which reflect the preferences of my organization:
 
 Examples (mission → label):
 
-- "community betterment" → 1
-- "to provide weekend food for children in need" → 1
+- "positive community" → 1
+- "Christian worship to create positive community impact" → 1
 - "religious services" → 1
+- "under our faith in god" → 1
 - "to provide soccer instruction to hanover township youth" → 0
 - "operate rural public library" → 0
 - "the bangor symphony orchestra provides powerful enriching and diverse musical experiences" → 0
@@ -50,7 +52,7 @@ class MissionLabel(BaseModel):
     label: int | None
     reason: str
 
-output_path = "data/classified_missions_gpt4omini.csv"
+output_path = "data/classified_missions_gpt4omini_PROMPT2.csv"
 checkpoint_every = 100  # save every 100 items
 max_retries = 5
 
