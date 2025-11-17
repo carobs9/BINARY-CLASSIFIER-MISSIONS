@@ -2,7 +2,7 @@
 
 A BERT-based binary classifier for identifying religious nonprofit organizations from mission statements, with advanced techniques to handle severe class imbalance.
 
-## 📋 Table of Contents
+## Table of Contents
 - [Overview](#overview)
 - [Technical Challenges: Class Imbalance](#technical-challenges-class-imbalance)
 - [Class Imbalance Solutions](#class-imbalance-solutions)
@@ -303,4 +303,3 @@ carobs9
 
 - BERT model from Hugging Face Transformers
 - Training data labeled with OpenAI GPT-4o-mini
-- Class imbalance techniques inspired by scikit-learn and deep learning literature
