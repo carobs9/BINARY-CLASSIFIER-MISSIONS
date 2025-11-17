@@ -1,9 +1,10 @@
 # Binary Classification of Religious vs. Non-Religious Nonprofit Missions
 
-A BERT-based binary classifier for identifying religious nonprofit organizations from mission statements, with advanced techniques to handle severe class imbalance.
+A BERT-based binary classifier for identifying religious nonprofit organizations from mission statements, with advanced techniques to handle severe class imbalance. **The core innovation is introducing domain knowledge from economics of religion into the classification process through OpenAI-based annotation and subsequent fine-tuning.**
 
 ## Table of Contents
 - [Overview](#overview)
+- [Introducing Domain Knowledge](#introducing-domain-knowledge)
 - [Technical Challenges: Class Imbalance](#technical-challenges-class-imbalance)
 - [Class Imbalance Solutions](#class-imbalance-solutions)
 - [Project Structure](#project-structure)
@@ -16,9 +17,98 @@ A BERT-based binary classifier for identifying religious nonprofit organizations
 
 This project implements a binary text classification system to distinguish religious (label=1) from non-religious (label=0) nonprofit mission statements. The classifier is built on BERT-base-uncased and fine-tuned on GPT-4o-mini-labeled data, with special emphasis on handling significant class imbalance challenges.
 
-**Classification Criteria:**
+**The key challenge:** Traditional classification approaches lack the nuanced understanding required to identify religious nonprofits, especially those using subtle faith-based language (e.g., "positive community," "acts of compassion"). This project addresses this by **encoding expert domain knowledge from economics of religion into the training data through carefully designed OpenAI prompts**, then transferring that knowledge to BERT via fine-tuning.
+
+**Classification Criteria** (based on economics of religion scholarship):
 - **Religious (1)**: Mentions religion, faith, God, Christ, spiritual concepts, OR emphasizes community/compassion in faith-based contexts
 - **Non-Religious (0)**: Focuses on secular activities (healthcare, sports, arts, environment, education, etc.) without religious motivation
+
+## Introducing Domain Knowledge
+
+### The Domain Knowledge Challenge
+
+Identifying religious nonprofits requires specialized knowledge from **economics of religion**—a field studying how religious organizations function economically and socially. Key challenges include:
+
+1. **Implicit religious language**: Phrases like "positive community," "give hope," or "acts of compassion" often signal faith-based organizations but appear secular
+2. **Contextual interpretation**: The same words can indicate religious vs. secular intent depending on context
+3. **Scholarly expertise**: Proper classification requires understanding how religion scholars define and categorize faith-based organizations
+
+### Solution: OpenAI Annotation as Knowledge Transfer
+
+This project introduces domain knowledge through a **two-stage knowledge transfer pipeline**:
+
+#### Stage 1: Expert Knowledge → OpenAI (Prompt Engineering)
+```python
+# File: generate_training_data.py
+classifier_prompt = '''You are classifying nonprofit mission statements as RELIGIOUS (1) or NON-RELIGIOUS (0).
+
+Use these definitions, which reflect experiences of scholars of economics of religion:
+
+- Label 1 (RELIGIOUS) if:
+  - The mission mentions religion, faith, God, Christ, Jesus, Bible, gospel, church, ministry, spiritual worship, or similar concepts; OR
+  - The mission emphasizes positive community, compassion, hope, moral uplift, or similar concepts
+    in a way typical of faith-based charities.
+
+Examples (mission → label):
+- "positive community" → 1
+- "Christian worship to create positive community impact" → 1
+- "to provide soccer instruction to hanover township youth" → 0
+...
+'''
+```
+
+**Domain knowledge encoding strategies:**
+- **Explicit scholarly grounding**: Prompt states "reflect experiences of scholars of economics of religion"
+- **Nuanced rules**: Captures subtle indicators like "positive community" as religious markers
+- **Few-shot examples**: Provides concrete cases demonstrating expert judgment
+- **Structured output**: Uses Pydantic validation for consistent labeling
+
+#### Stage 2: OpenAI → BERT (Fine-tuning Transfer)
+
+GPT-4o-mini annotations (containing encoded domain knowledge) are used to fine-tune BERT:
+```python
+# BERT learns domain knowledge patterns from GPT-4o-mini labels
+trainer = CustomTrainer(
+    model=model,
+    train_dataset=tokenized_datasets["train"],  # GPT-4o-mini labeled data
+    ...
+)
+```
+
+**Why this approach works:**
+1. **GPT-4o-mini** has broad language understanding but needs domain-specific guidance via prompts
+2. **Expert prompts** inject economics of religion expertise into GPT-4o-mini's classification decisions
+3. **BERT fine-tuning** distills this expert knowledge into a smaller, faster, deployable model
+4. **Result**: BERT learns to classify with domain expertise without requiring manual expert labeling of thousands of examples
+
+### Advantages Over Alternative Approaches
+
+| Approach | Limitation | Our Solution |
+|----------|------------|-------------|
+| **Manual expert labeling** | Expensive, slow, requires domain experts for every sample | GPT-4o-mini scales expert knowledge via prompting |
+| **Generic BERT fine-tuning** | No domain knowledge, misses subtle religious indicators | Expert-designed prompts encode scholarly definitions |
+| **Rule-based classification** | Brittle, can't handle nuanced language | LLM-based annotation captures contextual patterns |
+| **Zero-shot GPT-4** | Too expensive for large-scale deployment | BERT distillation enables efficient inference |
+
+### Validation: GPT-4o-mini as Labeling Quality
+
+The annotation pipeline includes quality control:
+```python
+# File: generate_training_data.py
+class MissionLabel(BaseModel):
+    label: int | None
+    reason: str  # Explanation for each label
+
+# Rate limit handling ensures reliable annotations
+max_retries = 5
+for attempt in range(max_retries):
+    # Exponential backoff for rate limits
+```
+
+- **Structured validation**: Pydantic ensures JSON schema compliance
+- **Reasoning capture**: Each label includes explanation for audit
+- **Checkpoint system**: Saves every 100 samples for error recovery
+- **Resume capability**: Can restart from failures without data loss
 
 ## Technical Challenges: Class Imbalance
 
@@ -161,16 +251,18 @@ echo "OPENAI_API_KEY=your_api_key_here" > .env
 
 ## Usage
 
-### 1. Generate Training Data (Optional)
-Label mission statements using GPT-4o-mini with structured prompting:
+### 1. Generate Training Data (Domain Knowledge Injection)
+Label mission statements using GPT-4o-mini with expert-designed prompts that encode domain knowledge from economics of religion:
 ```bash
 python generate_training_data.py
 ```
 **Features:**
-- Structured JSON output with Pydantic validation
-- Automatic checkpointing every 100 samples
-- Rate limit handling with exponential backoff
-- Resume capability from checkpoints
+- **Expert prompt engineering**: Embeds scholarly definitions of religious nonprofits
+- **Structured JSON output**: Pydantic validation ensures label consistency
+- **Automatic checkpointing**: Saves every 100 samples for reliability
+- **Rate limit handling**: Exponential backoff with 5 retry attempts
+- **Resume capability**: Restart from checkpoints without data loss
+- **Reasoning capture**: Stores explanation for each classification decision
 
 ### 2. Create Balanced Dataset
 Apply stratified split and random oversampling:
@@ -182,10 +274,11 @@ python split_data.py
 - `test.csv`: Stratified test set (30% of data)
 - `train_balanced.csv`: Oversampled training set (50/50 balance)
 
-### 3. Train Model
-Open and run `final_finetuning.ipynb` to:
-- Load balanced training data
+### 3. Train Model (Knowledge Transfer to BERT)
+Open and run `final_finetuning.ipynb` to transfer domain knowledge from GPT-4o-mini annotations to BERT:
+- Load balanced training data (with GPT-4o-mini expert labels)
 - Configure BERT-base-uncased with custom loss
+- Fine-tune BERT to learn domain knowledge patterns
 - Train with weighted cross-entropy + early stopping
 - Evaluate with F1-score, precision, recall
 - Generate confusion matrix
@@ -269,10 +362,12 @@ Evaluated on stratified test set with original class distribution:
 ## Key Insights
 
 ### What Worked
-1. **Oversampling + Weighted Loss**: Combining data-level and algorithm-level approaches proved most effective
-2. **F1 Optimization**: Shifted focus from accuracy to balanced precision/recall
-3. **Partial Freezing**: Prevented overfitting while maintaining adaptation capacity
-4. **Manual Weight Tuning**: Class weight of 1.3 for minority class optimal for this dataset
+1. **Domain Knowledge Transfer Pipeline**: GPT-4o-mini annotation → BERT fine-tuning successfully encoded economics of religion expertise
+2. **Expert Prompt Engineering**: Carefully designed prompts captured nuanced religious indicators (e.g., "positive community")
+3. **Oversampling + Weighted Loss**: Combining data-level and algorithm-level approaches proved most effective
+4. **F1 Optimization**: Shifted focus from accuracy to balanced precision/recall
+5. **Partial Freezing**: Prevented overfitting while maintaining adaptation capacity
+6. **Manual Weight Tuning**: Class weight of 1.3 for minority class optimal for this dataset
 
 ### What to Try Next
 - **SMOTE**: Synthetic minority oversampling instead of duplication
@@ -301,5 +396,7 @@ carobs9
 
 ## Acknowledgments
 
+- Domain knowledge from economics of religion scholarship
 - BERT model from Hugging Face Transformers
-- Training data labeled with OpenAI GPT-4o-mini
+- Knowledge transfer via OpenAI GPT-4o-mini annotation
+- Class imbalance techniques inspired by scikit-learn and deep learning literature
