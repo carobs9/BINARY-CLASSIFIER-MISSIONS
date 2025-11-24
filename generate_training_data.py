@@ -1,5 +1,4 @@
-from openai import OpenAI
-import openai 
+import openai
 from pydantic import BaseModel, ValidationError
 import pandas as pd
 import json
@@ -16,7 +15,8 @@ missions = raw.CONCATENATED_ACTIVITY.dropna().tolist()
 missions_subset = missions[0:3_000]
 
 api_key = os.getenv('OPENAI_API_KEY')
-client = OpenAI(api_key=api_key)
+# Use the module's OpenAI client (avoid importing the class into the local namespace)
+client = openai.OpenAI(api_key=api_key)
 
 classifier_prompt = '''You are classifying nonprofit mission statements as RELIGIOUS (1) or NON-RELIGIOUS (0).
 
@@ -50,6 +50,38 @@ Respond ONLY in this exact JSON format:
 {{"label": 0 or 1, "reason": "short explanation"}}
 '''
 
+classifier_prompt_activities = '''You are classifying nonprofit activity summaries as RELIGIOUS (1) or NON-RELIGIOUS (0).
+
+Use these definitions, which reflect experiences of scholars of economics of religion:
+
+- Label 1 (RELIGIOUS) if:
+  - The summary mentions religion, faith, God, Christ, Jesus, Bible, gospel, church, ministry, spiritual worship, or similar concepts; OR
+  - The summary emphasizes positive community, compassion, hope, moral uplift, or similar concepts
+    in a way typical of faith-based charities. Examples: "positive community", "give hope to the poor", "serve our neighbors",
+    "acts of compassion", "uplift our community", etc.
+
+- Label 0 (NON-RELIGIOUS) if:
+  - The summary clearly focuses on secular activities (healthcare, sports, arts, environment, economic development,
+    education, fairs, libraries, recreation, etc.) and does not show an obviously religious or faith-based motivation.
+
+Examples (summary → label):
+
+- "positive community" → 1
+- "Christian worship to create positive community impact" → 1
+- "religious services" → 1
+- "under our faith in god" → 1
+- "to provide soccer instruction to hanover township youth" → 0
+- "operate rural public library" → 0
+- "the bangor symphony orchestra provides powerful enriching and diverse musical experiences" → 0
+
+Now classify the following summary:
+
+SUMMARY: "{mission_text}"
+
+Respond ONLY in this exact JSON format:
+{{"label": 0 or 1, "reason": "short explanation"}}
+'''
+
 class MissionLabel(BaseModel):
     label: int | None
     reason: str
@@ -74,7 +106,10 @@ total = len(missions_subset)
 
 for i in range(start_index, total):
     mission = missions_subset[i] # take a specific mission
-    prompt = classifier_prompt.format(mission_text=mission) # format the prompt
+    if DATA_OF_CHOICE == 'missions':
+        prompt = classifier_prompt.format(mission_text=mission) # format the prompt
+    else:
+        prompt = classifier_prompt_activities.format(mission_text=mission) # format the prompt
 
     # retry loop
     for attempt in range(max_retries): # keep in mind max retries (5)
