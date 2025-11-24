@@ -9,8 +9,10 @@ from dotenv import load_dotenv
 
 load_dotenv() 
 
-raw = pd.read_parquet('data/501c3_charity_geocoded_missions_clean.parquet', engine='pyarrow')
-missions = raw.CANONICAL_MISSION.dropna().tolist()
+DATA_OF_CHOICE = 'activities'
+raw = pd.read_parquet(f'data/501c3_charity_geocoded_{DATA_OF_CHOICE}_clean.parquet', engine='pyarrow')
+print(raw.columns)
+missions = raw.CONCATENATED_ACTIVITY.dropna().tolist()
 missions_subset = missions[0:3_000]
 
 api_key = os.getenv('OPENAI_API_KEY')
@@ -52,7 +54,7 @@ class MissionLabel(BaseModel):
     label: int | None
     reason: str
 
-output_path = "data/classified_missions_gpt4omini_PROMPT2.csv"
+output_path = f"data/classified_{DATA_OF_CHOICE}_gpt4omini_PROMPT2.csv"
 checkpoint_every = 100  # save every 100 items
 max_retries = 5 # try each organization x5, if not, continue
 
