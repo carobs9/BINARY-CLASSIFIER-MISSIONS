@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv() 
 
-DATA_OF_CHOICE = 'activities'
+DATA_OF_CHOICE = 'activities' # missions or activities
 raw = pd.read_parquet(f'data/501c3_charity_geocoded_{DATA_OF_CHOICE}_clean.parquet', engine='pyarrow')
 print(raw.columns)
 missions = raw.CONCATENATED_ACTIVITY.dropna().tolist()
