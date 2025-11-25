@@ -4,4 +4,4 @@ venv
 *.parquet
 results
 my_model
-my_model_prompt2
+my_model_prompt2my_model_prompt2/model.safetensors
