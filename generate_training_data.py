@@ -6,7 +6,7 @@ import os
 import time
 from dotenv import load_dotenv
 
-load_dotenv() 
+load_dotenv() # load environment variables from .env file
 
 DATA_OF_CHOICE = 'activities' # missions or activities
 raw = pd.read_parquet(f'data/501c3_charity_geocoded_{DATA_OF_CHOICE}_clean.parquet', engine='pyarrow')
